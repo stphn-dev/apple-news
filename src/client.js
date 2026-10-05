@@ -38,10 +38,24 @@ function assertId(value, name) {
  * @param {boolean} includeRevision
  */
 function buildMetadata(options, host, includeRevision = false) {
-  const metadata = {
-    isPreview: options.isPreview ?? true,
-    isSponsored: options.isSponsored ?? false,
-    isHidden: options.isHidden ?? false
+  const metadata = includeRevision
+    ? {}
+    : {
+        isPreview: options.isPreview ?? true,
+        isSponsored: options.isSponsored ?? false,
+        isHidden: options.isHidden ?? false
+      }
+
+  if (options.isPreview !== undefined) {
+    metadata.isPreview = options.isPreview
+  }
+
+  if (options.isSponsored !== undefined) {
+    metadata.isSponsored = options.isSponsored
+  }
+
+  if (options.isHidden !== undefined) {
+    metadata.isHidden = options.isHidden
   }
 
   if (options.sections !== undefined) {
