@@ -27,10 +27,30 @@ function assertId(value, name) {
  */
 
 /**
- * @param {Object} options
+ * Option keys that are either request-level parameters or metadata fields
+ * handled explicitly by buildMetadata. Every other option is forwarded to
+ * the article metadata as-is.
+ */
+const RESERVED_ARTICLE_OPTIONS = new Set([
+  'channelId',
+  'articleId',
+  'article',
+  'bundleFiles',
+  'date',
+  'isPreview',
+  'isSponsored',
+  'sections',
+  'maturityRating',
+  'revision'
+])
+
+/**
+ * Builds article metadata from documented fields plus any additional
+ * (non-reserved) options, which are forwarded unchanged.
+ *
+ * @param {Record<string, unknown>} options
  * @param {boolean} [options.isPreview=true]
  * @param {boolean} [options.isSponsored=false]
- * @param {boolean} [options.isPaid=false]
  * @param {string[]} [options.sections]
  * @param {'KIDS'|'MATURE'|'GENERAL'} [options.maturityRating]
  * @param {string} [options.revision]
@@ -42,8 +62,7 @@ function buildMetadata(options, host, includeRevision = false) {
     ? {}
     : {
         isPreview: options.isPreview ?? true,
-        isSponsored: options.isSponsored ?? false,
-        isPaid: options.isPaid ?? false
+        isSponsored: options.isSponsored ?? false
       }
 
   if (includeRevision) {
@@ -54,9 +73,11 @@ function buildMetadata(options, host, includeRevision = false) {
     if (options.isSponsored !== undefined) {
       metadata.isSponsored = options.isSponsored
     }
+  }
 
-    if (options.isPaid !== undefined) {
-      metadata.isPaid = options.isPaid
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && !RESERVED_ARTICLE_OPTIONS.has(key)) {
+      metadata[key] = value
     }
   }
 
@@ -244,10 +265,12 @@ export class AppleNewsClient {
    * @param {Record<string, ArticleBundleFile>} [options.bundleFiles]
    * @param {boolean} [options.isPreview=true]
    * @param {boolean} [options.isSponsored=false]
-   * @param {boolean} [options.isPaid=false]
    * @param {string[]} [options.sections]
    * @param {'KIDS'|'MATURE'|'GENERAL'} [options.maturityRating]
    * @param {string|Date} [options.date]
+   * Any other options (for example `accessoryText`, `isHidden`,
+   * `isCandidateToBeFeatured`, `targetTerritoryCountryCodes`) are forwarded
+   * to the article metadata unchanged.
    */
   async createArticle(options) {
     assertId(options?.channelId, 'channelId')
@@ -273,10 +296,12 @@ export class AppleNewsClient {
    * @param {Record<string, ArticleBundleFile>} [options.bundleFiles]
    * @param {boolean} [options.isPreview]
    * @param {boolean} [options.isSponsored]
-   * @param {boolean} [options.isPaid]
    * @param {string[]} [options.sections]
    * @param {'KIDS'|'MATURE'|'GENERAL'} [options.maturityRating]
    * @param {string|Date} [options.date]
+   * Any other options (for example `accessoryText`, `isHidden`,
+   * `isCandidateToBeFeatured`, `targetTerritoryCountryCodes`) are forwarded
+   * to the article metadata unchanged.
    */
   async updateArticle(options) {
     assertId(options?.articleId, 'articleId')
