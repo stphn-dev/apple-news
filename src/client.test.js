@@ -250,8 +250,7 @@ suite('AppleNewsClient', () => {
       article: { identifier: 'art1', title: 'Title' },
       sections: ['sec1'],
       isPreview: null,
-      isSponsored: null,
-      isHidden: null
+      isSponsored: null
     })
 
     expect(result).toEqual({ id: 'art1' })
@@ -271,8 +270,71 @@ suite('AppleNewsClient', () => {
     expect(bodyText).toContain('name="metadata"')
     expect(bodyText).toContain('{"identifier":"art1","title":"Title"}')
     expect(bodyText).toContain(
-      '{"data":{"isPreview":true,"isSponsored":false,"isHidden":false,"links":{"sections":["https://news-api.apple.com/sections/sec1"]}}}'
+      '{"data":{"isPreview":true,"isSponsored":false,"links":{"sections":["https://news-api.apple.com/sections/sec1"]}}}'
     )
+  })
+
+  test('createArticle forwards arbitrary options to metadata', async () => {
+    const { client, fetchMock } = createClientWithResponse({
+      data: { id: 'art1' }
+    })
+
+    await client.createArticle({
+      channelId: 'abc',
+      article: { identifier: 'art1' },
+      accessoryText: 'Breaking',
+      customFlag: true,
+      customNumber: 0,
+      customNull: null,
+      customList: ['US', 'CA'],
+      customObject: { nested: 'value' },
+      customUndefined: undefined
+    })
+
+    const bodyText = fetchMock.mock.calls[0][1].body.toString('utf8')
+    expect(bodyText).toContain(
+      '{"data":{"isPreview":true,"isSponsored":false,"accessoryText":"Breaking","customFlag":true,"customNumber":0,"customNull":null,"customList":["US","CA"],"customObject":{"nested":"value"}}}'
+    )
+  })
+
+  test('createArticle does not forward request-level options to metadata', async () => {
+    const { client, fetchMock } = createClientWithResponse({
+      data: { id: 'art1' }
+    })
+
+    await client.createArticle({
+      channelId: 'abc',
+      article: { identifier: 'art1' },
+      bundleFiles: { 'image.jpg': { data: Buffer.from('img') } },
+      date: '2026-04-03T12:00:00Z',
+      sections: ['sec1'],
+      revision: 'r1',
+      customFlag: true
+    })
+
+    const bodyText = fetchMock.mock.calls[0][1].body.toString('utf8')
+    expect(bodyText).toContain(
+      '{"data":{"isPreview":true,"isSponsored":false,"customFlag":true,"links":{"sections":["https://news-api.apple.com/sections/sec1"]}}}'
+    )
+  })
+
+  test('createArticle sections option takes precedence over a raw links option', async () => {
+    const { client, fetchMock } = createClientWithResponse({
+      data: { id: 'art1' }
+    })
+
+    await client.createArticle({
+      channelId: 'abc',
+      article: { identifier: 'art1' },
+      links: { sections: ['https://example.com/sections/raw'] },
+      sections: ['sec1']
+    })
+
+    const bodyText = fetchMock.mock.calls[0][1].body.toString('utf8')
+    expect(bodyText).toContain(
+      '"links":{"sections":["https://news-api.apple.com/sections/sec1"]}'
+    )
+    expect(bodyText).not.toContain('example.com')
   })
 
   test('updateArticle requires revision and includes it in metadata', async () => {
@@ -297,7 +359,6 @@ suite('AppleNewsClient', () => {
       article: { identifier: 'art1', title: 'Updated' },
       isPreview: false,
       isSponsored: false,
-      isHidden: true,
       maturityRating: 'GENERAL'
     })
 
@@ -312,7 +373,6 @@ suite('AppleNewsClient', () => {
     expect(bodyText).toContain('"revision":"r1"')
     expect(bodyText).toContain('"isPreview":false')
     expect(bodyText).toContain('"isSponsored":false')
-    expect(bodyText).toContain('"isHidden":true')
     expect(bodyText).toContain('"maturityRating":"GENERAL"')
     expect(bodyText).not.toContain('"sections"')
   })
@@ -330,7 +390,27 @@ suite('AppleNewsClient', () => {
     expect(bodyText).toContain('{"data":{"revision":"r1"}}')
     expect(bodyText).not.toContain('"isPreview"')
     expect(bodyText).not.toContain('"isSponsored"')
-    expect(bodyText).not.toContain('"isHidden"')
+  })
+
+  test('updateArticle forwards arbitrary options to metadata', async () => {
+    const { client, fetchMock } = createClientWithResponse()
+
+    await client.updateArticle({
+      articleId: 'art1',
+      revision: 'r1',
+      article: { identifier: 'art1' },
+      isHidden: true,
+      customFlag: false,
+      customString: 'value',
+      customUndefined: undefined
+    })
+
+    const bodyText = fetchMock.mock.calls[0][1].body.toString('utf8')
+    expect(bodyText).toContain(
+      '{"data":{"isHidden":true,"customFlag":false,"customString":"value","revision":"r1"}}'
+    )
+    expect(bodyText).not.toContain('"articleId"')
+    expect(bodyText).not.toContain('customUndefined')
   })
 
   test('createArticle and updateArticle require ids and article payloads', async () => {
